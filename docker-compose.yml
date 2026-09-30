@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # Main application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: volunteerhub-app
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-3000}:80"
+    volumes:
+      # Persistent storage for uploads and backups
+      - app-uploads:/data/uploads
+      - app-backups:/data/backups
+      - app-logs:/data/logs
+    environment:
+      - NODE_ENV=production
+      - APP_NAME=${APP_NAME:-VolunteerHub}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://volunteerhub:volunteerhub@db:5432/volunteerhub}
+      - EMAIL_MODE=${EMAIL_MODE:-console}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_ENCRYPTION=${SMTP_ENCRYPTION:-starttls}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_ADDRESS=${SMTP_FROM_ADDRESS:-}
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-900000}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-20}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - volunteerhub-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: volunteerhub-db
+    restart: unless-stopped
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-volunteerhub}
+      - POSTGRES_USER=${POSTGRES_USER:-volunteerhub}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-me-in-production}
+    networks:
+      - volunteerhub-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-volunteerhub}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Optional: Redis for session management and rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: volunteerhub-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-change-me-in-production}
+    volumes:
+      - redis-data:/data
+    networks:
+      - volunteerhub-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-change-me-in-production}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data:
+    driver: local
+  redis-data:
+    driver: local
+  app-uploads:
+    driver: local
+  app-backups:
+    driver: local
+  app-logs:
+    driver: local
+
+networks:
+  volunteerhub-network:
+    driver: bridge
