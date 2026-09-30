@@ -379,7 +379,7 @@ export const useStore = create<AppState>()(
       },
     }),
     {
-      name: 'volunteer-hub-storage',
+      name: 'kindred-hands-storage',
     }
   )
 );

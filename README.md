@@ -1,6 +1,8 @@
-# VolunteerHub - Volunteer Tracking System
+# Kindred Hands - Volunteer Tracking System
 
 A complete, production-ready volunteer tracking system that runs in Docker and can be securely accessed over the internet.
+
+**GitHub:** [oak8989/kindred-hands](https://github.com/oak8989/kindred-hands)
 
 ## Features
 
@@ -29,8 +31,8 @@ A complete, production-ready volunteer tracking system that runs in Docker and c
 ### 1. Clone and Configure
 
 ```bash
-git clone <repository-url> volunteerhub
-cd volunteerhub
+git clone https://github.com/oak8989/kindred-hands.git
+cd kindred-hands
 
 # Copy environment file
 cp .env.example .env
@@ -65,11 +67,11 @@ After setup, log in with the admin credentials you created.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `HOST_PORT` | Port on host machine | `3000` |
-| `APP_NAME` | Organization name | `VolunteerHub` |
+| `APP_NAME` | Organization name | `Kindred Hands` |
 | `APP_URL` | Public URL | `http://localhost:3000` |
 | `SECRET_KEY` | Session/token signing key | **Must change** |
-| `POSTGRES_DB` | Database name | `volunteerhub` |
-| `POSTGRES_USER` | Database user | `volunteerhub` |
+| `POSTGRES_DB` | Database name | `kindredhands` |
+| `POSTGRES_USER` | Database user | `kindredhands` |
 | `POSTGRES_PASSWORD` | Database password | **Must change** |
 | `REDIS_PASSWORD` | Redis password | **Must change** |
 | `EMAIL_MODE` | `console`, `file`, or `smtp` | `console` |
@@ -154,7 +156,7 @@ Use a reverse proxy like Caddy or Nginx with Let's Encrypt:
 # Install Caddy on your host machine
 # Create Caddyfile
 cat > Caddyfile << 'EOF'
-volunteer.yourdomain.com {
+kindred-hands.yourdomain.com {
     reverse_proxy localhost:3000
 }
 EOF
@@ -170,10 +172,10 @@ caddy start
 sudo apt install nginx certbot python3-certbot-nginx
 
 # Configure nginx
-cat > /etc/nginx/sites-available/volunteerhub << 'EOF'
+cat > /etc/nginx/sites-available/kindred-hands << 'EOF'
 server {
     listen 80;
-    server_name volunteer.yourdomain.com;
+    server_name kindred-hands.yourdomain.com;
     
     location / {
         proxy_pass http://localhost:3000;
@@ -185,11 +187,11 @@ server {
 }
 EOF
 
-sudo ln -s /etc/nginx/sites-available/volunteerhub /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/kindred-hands /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 
 # Get SSL certificate
-sudo certbot --nginx -d volunteer.yourdomain.com
+sudo certbot --nginx -d kindred-hands.yourdomain.com
 ```
 
 ### Option 2: Direct Exposure (Not Recommended)
@@ -204,7 +206,7 @@ If you must expose directly:
 
 Point your domain to your server's public IP:
 1. Get your public IP: `curl ifconfig.me`
-2. Create an A record: `volunteer.yourdomain.com → YOUR_IP`
+2. Create an A record: `kindred-hands.yourdomain.com → YOUR_IP`
 3. Wait for DNS propagation (up to 48 hours)
 
 ### Router Configuration
@@ -233,10 +235,10 @@ docker compose logs --tail=50 app
 ### Database Backup
 ```bash
 # Create backup
-docker compose exec db pg_dump -U volunteerhub volunteerhub > backup_$(date +%Y%m%d_%H%M%S).sql
+docker compose exec db pg_dump -U kindredhands kindredhands > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Automated daily backup (add to crontab)
-0 2 * * * cd /path/to/volunteerhub && docker compose exec -T db pg_dump -U volunteerhub volunteerhub > /path/to/backups/db_$(date +\%Y\%m\%d).sql
+0 2 * * * cd /path/to/kindred-hands && docker compose exec -T db pg_dump -U kindredhands kindredhands > /path/to/backups/db_$(date +\%Y\%m\%d).sql
 ```
 
 ### Full System Backup
@@ -245,7 +247,7 @@ docker compose exec db pg_dump -U volunteerhub volunteerhub > backup_$(date +%Y%
 docker compose down
 
 # Backup volumes
-docker run --rm -v volunteerhub_db-data:/data -v $(pwd):/backup alpine tar czf /backup/full-backup-$(date +%Y%m%d).tar.gz /data
+docker run --rm -v kindred-hands_db-data:/data -v $(pwd):/backup alpine tar czf /backup/full-backup-$(date +%Y%m%d).tar.gz /data
 
 # Restart
 docker compose up -d
@@ -254,11 +256,11 @@ docker compose up -d
 ### Restore
 ```bash
 # Restore database
-cat backup.sql | docker compose exec -T db psql -U volunteerhub volunteerhub
+cat backup.sql | docker compose exec -T db psql -U kindredhands kindredhands
 
 # Or restore full backup
 docker compose down
-docker run --rm -v volunteerhub_db-data:/data -v $(pwd):/backup alpine sh -c "cd / && tar xzf /backup/full-backup-YYYYMMDD.tar.gz"
+docker run --rm -v kindred-hands_db-data:/data -v $(pwd):/backup alpine sh -c "cd / && tar xzf /backup/full-backup-YYYYMMDD.tar.gz"
 docker compose up -d
 ```
 
@@ -334,7 +336,7 @@ docker compose up -d
 ┌────────────────────┴────────────────────────────┐
 │              Docker Host                         │
 │  ┌─────────────────────────────────────────┐    │
-│  │  VolunteerHub App (nginx + React SPA)   │    │
+│  │  Kindred Hands App (nginx + React SPA)  │    │
 │  │  - Port 80 (mapped to host 3000)        │    │
 │  └─────────────────────────────────────────┘    │
 │  ┌──────────────┐  ┌──────────────────────┐    │
@@ -346,10 +348,20 @@ docker compose up -d
 └─────────────────────────────────────────────────┘
 ```
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository (`https://github.com/oak8989/kindred-hands`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
 ## License
 
 MIT License - See LICENSE file for details.
 
 ## Support
 
-For issues and questions, please open an issue on the project repository.
+For issues and questions, please [open an issue](https://github.com/oak8989/kindred-hands/issues) on GitHub.

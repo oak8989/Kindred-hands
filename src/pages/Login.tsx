@@ -29,7 +29,7 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ backgroundColor: settings.primaryColor + '20' }}>
             <LogIn className="w-8 h-8" style={{ color: settings.primaryColor }} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{settings.name || 'VolunteerHub'}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{settings.name || 'Kindred Hands'}</h1>
           <p className="text-gray-600 mt-1">Sign in to your account</p>
         </div>
 

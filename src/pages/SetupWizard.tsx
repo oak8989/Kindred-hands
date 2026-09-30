@@ -67,7 +67,7 @@ export default function SetupWizard() {
   };
 
   const testEmail = () => {
-    sendEmail(adminEmail || 'test@example.com', 'Test Email from ' + (orgName || 'VolunteerHub'), 'This is a test email to verify your email configuration.');
+    sendEmail(adminEmail || 'test@example.com', 'Test Email from ' + (orgName || 'Kindred Hands'), 'This is a test email to verify your email configuration.');
     setTestEmailSent(true);
   };
 
@@ -78,7 +78,7 @@ export default function SetupWizard() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-4">
             <Shield className="w-8 h-8 text-indigo-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Welcome to VolunteerHub</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome to Kindred Hands</h1>
           <p className="text-gray-600 mt-2">Let's set up your volunteer tracking system</p>
         </div>
 

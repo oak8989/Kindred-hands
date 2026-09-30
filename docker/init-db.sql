@@ -1,4 +1,4 @@
--- VolunteerHub Database Initialization
+-- Kindred Hands Database Initialization
 -- This script runs automatically on first database creation
 
 -- Enable UUID generation
