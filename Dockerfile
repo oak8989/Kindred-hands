@@ -1,46 +1,44 @@
-# ---- Build Stage ----
-FROM node:20-alpine AS builder
+# ---- Build Frontend Stage ----
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 
-# Copy package files
 COPY package.json package-lock.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm ci --production=false
-
-# Copy source code
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# ---- Production Stage ----
-FROM nginx:1.25-alpine AS production
+# ---- Backend Stage ----
+FROM node:20-alpine AS production
 
-# Copy custom nginx configuration
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-# Copy built assets from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Install backend dependencies
+COPY backend/package.json backend/package-lock.json* ./backend/
+RUN cd backend && npm ci --production
 
-# Create non-root user for nginx
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+# Copy backend source
+COPY backend/ ./backend/
 
-# Create directories for persistent data
+# Copy built frontend
+COPY --from=frontend-builder /app/dist ./dist/
+
+# Create data directories
 RUN mkdir -p /data/uploads /data/backups /data/logs && \
-    chown -R appuser:appgroup /data && \
-    chown -R nginx:nginx /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid
+    addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup && \
+    chown -R appuser:appgroup /data /app
+
+USER appuser
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
-EXPOSE 80
+EXPOSE 3001
 
-CMD ["nginx", "-g", "daemon off;"]
+ENV NODE_ENV=production
+ENV PORT=3001
+
+CMD ["node", "backend/server.js"]

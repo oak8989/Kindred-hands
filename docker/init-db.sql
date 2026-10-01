@@ -59,9 +59,7 @@ CREATE TABLE IF NOT EXISTS attendance (
     hours DECIMAL(5,2),
     method VARCHAR(20) NOT NULL CHECK (method IN ('qr', 'staff', 'walkin')),
     verified BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    -- Prevent duplicate active check-ins
-    CONSTRAINT no_duplicate_active_checkin UNIQUE (event_id, user_id, check_out_time)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Waivers table
