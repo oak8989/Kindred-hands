@@ -40,19 +40,26 @@ export default function SetupWizard() {
       return;
     }
 
-    updateSettings({
+    // Save all settings including email configuration
+    const settingsUpdate: any = {
       name: orgName,
       primaryColor,
       secondaryColor,
       timezone,
       emailMode,
-      smtpHost: emailMode === 'smtp' ? smtpHost : undefined,
-      smtpPort: emailMode === 'smtp' ? parseInt(smtpPort) : undefined,
-      smtpEncryption: emailMode === 'smtp' ? smtpEncryption : undefined,
-      smtpUsername: emailMode === 'smtp' ? smtpUsername : undefined,
-      smtpPassword: emailMode === 'smtp' ? smtpPassword : undefined,
-      smtpFromAddress: emailMode === 'smtp' ? smtpFrom : undefined,
-    });
+    };
+
+    // Add SMTP settings if SMTP mode is selected
+    if (emailMode === 'smtp') {
+      settingsUpdate.smtpHost = smtpHost;
+      settingsUpdate.smtpPort = parseInt(smtpPort);
+      settingsUpdate.smtpEncryption = smtpEncryption;
+      settingsUpdate.smtpUsername = smtpUsername;
+      settingsUpdate.smtpPassword = smtpPassword;
+      settingsUpdate.smtpFromAddress = smtpFrom;
+    }
+
+    updateSettings(settingsUpdate);
 
     // Create admin user
     useStore.getState().register(adminEmail, adminName);
@@ -62,7 +69,10 @@ export default function SetupWizard() {
       useStore.getState().updateUserRole(adminUser.id, 'admin');
     }
 
+    // Mark setup as complete
     completeSetup();
+    
+    // Navigate to login
     navigate('/login');
   };
 

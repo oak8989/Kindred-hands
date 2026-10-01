@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import Layout from '../components/Layout';
 import { Users, Calendar, FileText, Award, Settings, Download, Plus, Edit, Trash2, Mail, Shield, BarChart3 } from 'lucide-react';
@@ -471,11 +471,85 @@ function MedalsTab() {
 }
 
 function EmailTab() {
-  const { emailLogs } = useStore();
+  const { emailLogs, settings, sendEmail, currentUser } = useStore();
+  const [testSent, setTestSent] = useState(false);
+  const [testTo, setTestTo] = useState(currentUser?.email || '');
+
+  const handleSendTest = () => {
+    if (!testTo) return;
+    sendEmail(testTo, 'Test Email from ' + settings.name, 'This is a test email sent from the Kindred Hands admin panel. If you receive this, your email configuration is working correctly.');
+    setTestSent(true);
+    setTimeout(() => setTestSent(false), 3000);
+  };
+
   return (
     <div>
-      <p className="text-gray-600 mb-4">{emailLogs.length} emails logged</p>
+      {/* Email Configuration Status */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+        <h3 className="font-semibold text-gray-900 mb-3">Email Configuration</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-500">Mode:</span>{' '}
+            <span className="font-medium capitalize">{settings.emailMode}</span>
+          </div>
+          {settings.emailMode === 'smtp' && (
+            <>
+              <div>
+                <span className="text-gray-500">Host:</span>{' '}
+                <span className="font-medium">{settings.smtpHost || 'Not set'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Port:</span>{' '}
+                <span className="font-medium">{settings.smtpPort || 'Not set'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">From:</span>{' '}
+                <span className="font-medium">{settings.smtpFromAddress || 'Not set'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Encryption:</span>{' '}
+                <span className="font-medium">{settings.smtpEncryption || 'Not set'}</span>
+              </div>
+            </>
+          )}
+        </div>
+        {settings.emailMode === 'console' && (
+          <p className="text-xs text-gray-500 mt-3">
+            Console mode: Emails are logged to the browser console. Open DevTools (F12) → Console tab to view emails.
+          </p>
+        )}
+      </div>
+
+      {/* Send Test Email */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+        <h3 className="font-semibold text-gray-900 mb-3">Send Test Email</h3>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input 
+            type="email" 
+            value={testTo} 
+            onChange={e => setTestTo(e.target.value)} 
+            placeholder="recipient@example.com" 
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" 
+          />
+          <button 
+            onClick={handleSendTest} 
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition whitespace-nowrap"
+          >
+            {testSent ? '✓ Sent!' : 'Send Test'}
+          </button>
+        </div>
+        {testSent && (
+          <p className="text-sm text-green-600 mt-2">
+            Test email sent! {settings.emailMode === 'console' ? 'Check browser console (F12) for the email content.' : 'Check the email log below.'}
+          </p>
+        )}
+      </div>
+
+      {/* Email Log */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-4 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-900">Email Log ({emailLogs.length} emails)</h3>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
@@ -495,6 +569,13 @@ function EmailTab() {
                   <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">{log.status}</span></td>
                 </tr>
               ))}
+              {emailLogs.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                    No emails sent yet. Send a test email or register a user to see emails here.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -504,22 +585,86 @@ function EmailTab() {
 }
 
 function SettingsTab() {
-  const { settings, updateSettings } = useStore();
-  const [form, setForm] = useState({ ...settings });
+  const { settings, updateSettings, sendEmail, currentUser } = useStore();
+  const [form, setForm] = useState({
+    name: settings.name,
+    primaryColor: settings.primaryColor,
+    secondaryColor: settings.secondaryColor,
+    timezone: settings.timezone,
+    emailMode: settings.emailMode,
+    smtpHost: settings.smtpHost || '',
+    smtpPort: settings.smtpPort || 587,
+    smtpEncryption: settings.smtpEncryption || 'starttls',
+    smtpUsername: settings.smtpUsername || '',
+    smtpPassword: settings.smtpPassword || '',
+    smtpFromAddress: settings.smtpFromAddress || '',
+  });
+  const [saved, setSaved] = useState(false);
+  const [testEmailSent, setTestEmailSent] = useState(false);
+
+  // Update form when settings change
+  useEffect(() => {
+    setForm({
+      name: settings.name,
+      primaryColor: settings.primaryColor,
+      secondaryColor: settings.secondaryColor,
+      timezone: settings.timezone,
+      emailMode: settings.emailMode,
+      smtpHost: settings.smtpHost || '',
+      smtpPort: settings.smtpPort || 587,
+      smtpEncryption: settings.smtpEncryption || 'starttls',
+      smtpUsername: settings.smtpUsername || '',
+      smtpPassword: settings.smtpPassword || '',
+      smtpFromAddress: settings.smtpFromAddress || '',
+    });
+  }, [settings]);
 
   const handleSave = () => {
-    updateSettings(form);
-    alert('Settings saved!');
+    const updates: any = {
+      name: form.name,
+      primaryColor: form.primaryColor,
+      secondaryColor: form.secondaryColor,
+      timezone: form.timezone,
+      emailMode: form.emailMode,
+    };
+
+    if (form.emailMode === 'smtp') {
+      updates.smtpHost = form.smtpHost;
+      updates.smtpPort = form.smtpPort;
+      updates.smtpEncryption = form.smtpEncryption;
+      updates.smtpUsername = form.smtpUsername;
+      updates.smtpPassword = form.smtpPassword;
+      updates.smtpFromAddress = form.smtpFromAddress;
+    }
+
+    updateSettings(updates);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleTestEmail = () => {
+    const testEmail = currentUser?.email || 'test@example.com';
+    sendEmail(testEmail, 'Test Email from ' + form.name, 'This is a test email to verify your email configuration is working correctly.');
+    setTestEmailSent(true);
+    setTimeout(() => setTestEmailSent(false), 3000);
   };
 
   return (
     <div className="max-w-2xl">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-6">
         <h3 className="text-lg font-semibold text-gray-900">Organization Settings</h3>
+        
+        {saved && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+            ✓ Settings saved successfully!
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name</label>
           <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
         </div>
+        
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
@@ -536,6 +681,7 @@ function SettingsTab() {
             </div>
           </div>
         </div>
+        
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
           <select value={form.timezone} onChange={e => setForm({ ...form, timezone: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
@@ -547,45 +693,67 @@ function SettingsTab() {
             <option value="Europe/Berlin">Berlin</option>
           </select>
         </div>
+        
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Email Mode</label>
           <select value={form.emailMode} onChange={e => setForm({ ...form, emailMode: e.target.value as any })} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-            <option value="console">Console (logs to console)</option>
+            <option value="console">Console (logs to browser console)</option>
             <option value="file">File (logs to file)</option>
-            <option value="smtp">SMTP (real email)</option>
+            <option value="smtp">SMTP (real email server)</option>
           </select>
+          <p className="text-xs text-gray-500 mt-1">
+            {form.emailMode === 'console' && 'Emails will be logged to the browser console. Open DevTools (F12) to view.'}
+            {form.emailMode === 'file' && 'Emails will be saved to files on the server.'}
+            {form.emailMode === 'smtp' && 'Emails will be sent via SMTP server. Configure settings below.'}
+          </p>
         </div>
+        
         {form.emailMode === 'smtp' && (
-          <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+          <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h4 className="font-medium text-gray-900">SMTP Configuration</h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
-                <input type="text" value={form.smtpHost || ''} onChange={e => setForm({ ...form, smtpHost: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                <input type="text" value={form.smtpHost} onChange={e => setForm({ ...form, smtpHost: e.target.value })} placeholder="smtp.gmail.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
-                <input type="number" value={form.smtpPort || ''} onChange={e => setForm({ ...form, smtpPort: parseInt(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                <input type="number" value={form.smtpPort} onChange={e => setForm({ ...form, smtpPort: parseInt(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Encryption</label>
+              <select value={form.smtpEncryption} onChange={e => setForm({ ...form, smtpEncryption: e.target.value as any })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <option value="starttls">STARTTLS</option>
+                <option value="tls">TLS/SSL</option>
+                <option value="none">None</option>
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                <input type="text" value={form.smtpUsername || ''} onChange={e => setForm({ ...form, smtpUsername: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                <input type="text" value={form.smtpUsername} onChange={e => setForm({ ...form, smtpUsername: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input type="password" value={form.smtpPassword || ''} onChange={e => setForm({ ...form, smtpPassword: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                <input type="password" value={form.smtpPassword} onChange={e => setForm({ ...form, smtpPassword: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">From Address</label>
-              <input type="email" value={form.smtpFromAddress || ''} onChange={e => setForm({ ...form, smtpFromAddress: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+              <input type="email" value={form.smtpFromAddress} onChange={e => setForm({ ...form, smtpFromAddress: e.target.value })} placeholder="noreply@example.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
             </div>
           </div>
         )}
-        <button onClick={handleSave} className="px-6 py-2 text-white rounded-lg font-medium hover:opacity-90" style={{ backgroundColor: settings.primaryColor }}>
-          Save Settings
-        </button>
+        
+        <div className="flex gap-3">
+          <button onClick={handleSave} className="px-6 py-2 text-white rounded-lg font-medium hover:opacity-90 transition" style={{ backgroundColor: settings.primaryColor }}>
+            Save Settings
+          </button>
+          <button onClick={handleTestEmail} className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition">
+            {testEmailSent ? '✓ Test email sent!' : 'Send Test Email'}
+          </button>
+        </div>
       </div>
     </div>
   );
