@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Main application
+  # Main application (API + Frontend)
   app:
     build:
       context: .
@@ -9,18 +9,22 @@ services:
     container_name: kindred-hands-app
     restart: unless-stopped
     ports:
-      - "${HOST_PORT:-3000}:80"
+      - "${HOST_PORT:-3000}:3001"
     volumes:
-      # Persistent storage for uploads and backups
       - app-uploads:/data/uploads
       - app-backups:/data/backups
       - app-logs:/data/logs
     environment:
       - NODE_ENV=production
+      - PORT=3001
       - APP_NAME=${APP_NAME:-Kindred Hands}
       - APP_URL=${APP_URL:-http://localhost:3000}
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://kindredhands:kindredhands@db:5432/kindredhands}
+      - JWT_SECRET=${JWT_SECRET:-change-me-to-a-random-64-char-string}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${POSTGRES_DB:-kindredhands}
+      - DB_USER=${POSTGRES_USER:-kindredhands}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-change-me-in-production}
       - EMAIL_MODE=${EMAIL_MODE:-console}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
@@ -28,19 +32,17 @@ services:
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM_ADDRESS=${SMTP_FROM_ADDRESS:-}
-      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-900000}
-      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-20}
     depends_on:
       db:
         condition: service_healthy
     networks:
       - kindred-hands-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
   # PostgreSQL Database
   db:
@@ -63,7 +65,7 @@ services:
       retries: 5
       start_period: 30s
 
-  # Optional: Redis for session management and rate limiting
+  # Redis for caching and sessions (optional)
   redis:
     image: redis:7-alpine
     container_name: kindred-hands-redis

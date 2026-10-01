@@ -1,30 +1,61 @@
 # Kindred Hands - Volunteer Tracking System
 
-A complete, production-ready volunteer tracking system that runs in Docker and can be securely accessed over the internet.
+A complete, production-ready volunteer tracking system with a Node.js/Express backend, PostgreSQL database, and React frontend.
 
 **GitHub:** [oak8989/kindred-hands](https://github.com/oak8989/kindred-hands)
 
 ## Features
 
-- **Volunteer Accounts**: Email-based registration with temporary passwords and mandatory password reset
-- **Public & Private Events**: Browse, register, and manage events with capacity tracking
-- **Recurring Events**: Daily, weekly, and monthly schedules with single-occurrence cancellation
-- **Member Portal**: Profile, event registrations, attendance history, medals, and progress tracking
-- **Check-in/Check-out**: QR code scanning, staff-assisted attendance, and walk-in support
-- **Administration**: Role-based tools for managing members, events, attendance, waivers, and settings
-- **White-label Branding**: Customizable organization name, logo, colors, and theme
-- **Waivers**: Versioned waiver management with digital signature collection
-- **CSV Exports**: Export member and attendance data with volunteer hours
-- **Medals**: Configurable participation milestones with automatic and manual awards
-- **Email**: Console/file delivery by default; configurable SMTP for production
-- **Password Reset**: Secure, expiring, single-use reset links
-- **Roles**: Member, Assistant, and Admin with server-enforced permissions
+- **Real Backend API**: Node.js/Express server with PostgreSQL database
+- **Secure Authentication**: JWT tokens with bcrypt password hashing
+- **Volunteer Accounts**: Email-based registration with temporary passwords
+- **Public & Private Events**: Browse, register, and manage events
+- **Recurring Events**: Daily, weekly, and monthly schedules
+- **Member Portal**: Profile, registrations, attendance, medals
+- **Check-in/Check-out**: QR codes, staff-assisted, walk-in support
+- **Administration**: Role-based management tools
+- **White-label Branding**: Customizable organization settings
+- **Waivers**: Versioned waivers with digital signatures
+- **CSV Exports**: Export member and attendance data
+- **Medals**: Participation milestones and awards
+- **Email**: Console/file/SMTP delivery modes
+- **Password Reset**: Secure, expiring reset links
+- **Roles**: Member, Assistant, Admin with permission enforcement
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                   Internet                       │
+└────────────────────┬────────────────────────────┘
+                     │ HTTPS (443)
+┌────────────────────┴────────────────────────────┐
+│              Reverse Proxy (Optional)            │
+│              - TLS termination                   │
+│              - Rate limiting                     │
+└────────────────────┬────────────────────────────┘
+                     │ HTTP (3000)
+┌────────────────────┴────────────────────────────┐
+│              Docker Host                         │
+│  ┌─────────────────────────────────────────┐    │
+│  │  Kindred Hands App (Express + React)    │    │
+│  │  - API: Port 3001 (mapped to 3000)      │    │
+│  │  - Serves static frontend files         │    │
+│  └─────────────────────────────────────────┘    │
+│  ┌──────────────┐  ┌──────────────────────┐    │
+│  │  PostgreSQL   │  │  Redis (Optional)    │    │
+│  │  (port 5432)  │  │  (port 6379)         │    │
+│  └──────────────┘  └──────────────────────┘    │
+│                                                 │
+│  Volumes: db-data, app-uploads, app-backups     │
+└─────────────────────────────────────────────────┘
+```
 
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) (v20.10+)
 - [Docker Compose](https://docs.docker.com/compose/install/) (v2.0+)
-- At least 512MB RAM available for containers
+- At least 1GB RAM available for containers
 
 ## Quick Start
 
@@ -48,19 +79,17 @@ nano .env
 docker compose up -d
 ```
 
-### 3. Run the Setup Wizard
+The application will:
+- Build the React frontend
+- Start the Express API server
+- Initialize the PostgreSQL database
+- Run database migrations
 
-Open your browser to `http://localhost:3000` (or your configured `HOST_PORT`).
+### 3. Access the Application
 
-The setup wizard will guide you through:
-1. **Network Configuration** - Choose the host port
-2. **Organization Setup** - Name, branding, timezone
-3. **Email Configuration** - Console (default), file, or SMTP
-4. **Admin Account** - Create the initial administrator
+Open your browser to `http://localhost:3000`
 
-### 4. Access the Application
-
-After setup, log in with the admin credentials you created.
+The setup wizard will guide you through initial configuration.
 
 ## Environment Variables
 
@@ -69,7 +98,7 @@ After setup, log in with the admin credentials you created.
 | `HOST_PORT` | Port on host machine | `3000` |
 | `APP_NAME` | Organization name | `Kindred Hands` |
 | `APP_URL` | Public URL | `http://localhost:3000` |
-| `SECRET_KEY` | Session/token signing key | **Must change** |
+| `JWT_SECRET` | JWT signing key | **Must change** |
 | `POSTGRES_DB` | Database name | `kindredhands` |
 | `POSTGRES_USER` | Database user | `kindredhands` |
 | `POSTGRES_PASSWORD` | Database password | **Must change** |
@@ -81,13 +110,7 @@ After setup, log in with the admin credentials you created.
 | `SMTP_USERNAME` | SMTP username | - |
 | `SMTP_PASSWORD` | SMTP password | - |
 | `SMTP_FROM_ADDRESS` | Sender email address | - |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window (ms) | `900000` |
-| `RATE_LIMIT_MAX` | Max requests per window | `20` |
-
-**What belongs where:**
-- **Environment variables (.env)**: Secrets, database credentials, SMTP passwords, domain configuration
-- **Setup wizard**: Organization name, branding, admin account, email mode selection
-- **Never commit**: `.env` file, any file containing real passwords or tokens
+| `LOG_LEVEL` | Logging level | `info` |
 
 ## Email Modes
 
@@ -97,14 +120,8 @@ All emails are logged to Docker logs. Perfect for development and testing.
 docker compose logs -f app | grep EMAIL
 ```
 
-### File Mode
-Emails are saved as files in `/data/logs/emails/` inside the container.
-```bash
-docker compose exec app ls /data/logs/emails/
-```
-
 ### SMTP Mode
-Configure in `.env` or via the admin settings panel:
+Configure in `.env`:
 ```env
 EMAIL_MODE=smtp
 SMTP_HOST=smtp.gmail.com
@@ -117,7 +134,7 @@ SMTP_FROM_ADDRESS=noreply@yourdomain.com
 
 ## Local Network Access
 
-To access from other devices on your local network:
+Access from other devices on your local network:
 
 1. Find your server's local IP:
    ```bash
@@ -127,12 +144,12 @@ To access from other devices on your local network:
    ipconfig
    ```
 
-2. Access from any device on the network:
+2. Access from any device:
    ```
    http://<your-server-ip>:3000
    ```
 
-3. If using a firewall, allow the port:
+3. Allow the port in firewall:
    ```bash
    # UFW (Ubuntu)
    sudo ufw allow 3000/tcp
@@ -144,34 +161,26 @@ To access from other devices on your local network:
 
 ## Secure Internet Exposure
 
-**Docker alone does not configure internet access.** You must configure your network infrastructure.
-
 ### Option 1: Reverse Proxy with HTTPS (Recommended)
-
-Use a reverse proxy like Caddy or Nginx with Let's Encrypt:
 
 #### Using Caddy (simplest)
 
 ```bash
 # Install Caddy on your host machine
-# Create Caddyfile
 cat > Caddyfile << 'EOF'
 kindred-hands.yourdomain.com {
     reverse_proxy localhost:3000
 }
 EOF
 
-# Run Caddy
 caddy start
 ```
 
 #### Using Nginx with Let's Encrypt
 
 ```bash
-# Install certbot and nginx
 sudo apt install nginx certbot python3-certbot-nginx
 
-# Configure nginx
 cat > /etc/nginx/sites-available/kindred-hands << 'EOF'
 server {
     listen 80;
@@ -189,32 +198,46 @@ EOF
 
 sudo ln -s /etc/nginx/sites-available/kindred-hands /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-
-# Get SSL certificate
 sudo certbot --nginx -d kindred-hands.yourdomain.com
 ```
 
-### Option 2: Direct Exposure (Not Recommended)
-
-If you must expose directly:
-1. Configure your router to forward port 3000 to your server
-2. Set `APP_URL` in `.env` to your public URL
-3. Ensure `SECRET_KEY` is a strong random value
-4. Consider using a firewall to restrict access
-
 ### DNS Configuration
 
-Point your domain to your server's public IP:
 1. Get your public IP: `curl ifconfig.me`
 2. Create an A record: `kindred-hands.yourdomain.com → YOUR_IP`
 3. Wait for DNS propagation (up to 48 hours)
 
-### Router Configuration
+## Database Operations
 
-1. Access your router admin panel (usually `192.168.1.1`)
-2. Find "Port Forwarding" or "Virtual Server"
-3. Forward external port 80/443 to your server's internal IP on port 3000
-4. Assign a static IP to your server in DHCP settings
+### Backup
+
+```bash
+# Create backup
+docker compose exec db pg_dump -U kindredhands kindredhands > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Automated daily backup (add to crontab)
+0 2 * * * cd /path/to/kindred-hands && docker compose exec -T db pg_dump -U kindredhands kindredhands > /path/to/backups/db_$(date +\%Y\%m\%d).sql
+```
+
+### Restore
+
+```bash
+# Restore from backup
+cat backup.sql | docker compose exec -T db psql -U kindredhands kindredhands
+```
+
+### Full System Backup
+
+```bash
+# Stop services
+docker compose down
+
+# Backup volumes
+docker run --rm -v kindred-hands_db-data:/data -v $(pwd):/backup alpine tar czf /backup/full-backup-$(date +%Y%m%d).tar.gz /data
+
+# Restart
+docker compose up -d
+```
 
 ## Upgrades
 
@@ -230,129 +253,107 @@ docker compose ps
 docker compose logs --tail=50 app
 ```
 
-## Backups
-
-### Database Backup
-```bash
-# Create backup
-docker compose exec db pg_dump -U kindredhands kindredhands > backup_$(date +%Y%m%d_%H%M%S).sql
-
-# Automated daily backup (add to crontab)
-0 2 * * * cd /path/to/kindred-hands && docker compose exec -T db pg_dump -U kindredhands kindredhands > /path/to/backups/db_$(date +\%Y\%m\%d).sql
-```
-
-### Full System Backup
-```bash
-# Stop services
-docker compose down
-
-# Backup volumes
-docker run --rm -v kindred-hands_db-data:/data -v $(pwd):/backup alpine tar czf /backup/full-backup-$(date +%Y%m%d).tar.gz /data
-
-# Restart
-docker compose up -d
-```
-
-### Restore
-```bash
-# Restore database
-cat backup.sql | docker compose exec -T db psql -U kindredhands kindredhands
-
-# Or restore full backup
-docker compose down
-docker run --rm -v kindred-hands_db-data:/data -v $(pwd):/backup alpine sh -c "cd / && tar xzf /backup/full-backup-YYYYMMDD.tar.gz"
-docker compose up -d
-```
-
 ## Troubleshooting
 
 ### Application won't start
 ```bash
-# Check logs
 docker compose logs app
 docker compose logs db
-
-# Verify containers are running
 docker compose ps
-
-# Restart services
 docker compose restart
 ```
 
-### Can't access from browser
-1. Verify the app is running: `docker compose ps`
-2. Check port mapping: `docker compose port app 80`
-3. Check firewall rules
-4. Try `curl http://localhost:3000` from the server
-
 ### Database connection errors
 ```bash
-# Check database health
 docker compose exec db pg_isready
-
-# View database logs
 docker compose logs db
 ```
 
+### Can't access from browser
+1. Verify app is running: `docker compose ps`
+2. Check port mapping: `docker compose port app 3001`
+3. Check firewall rules
+4. Try `curl http://localhost:3000` from server
+
 ### Email not sending
-1. Check email mode in settings
-2. For SMTP: verify credentials in `.env`
-3. Check email logs in admin panel
-4. View Docker logs: `docker compose logs app | grep EMAIL`
+1. Check email mode in `.env`
+2. For SMTP: verify credentials
+3. Check email logs: `docker compose logs app | grep EMAIL`
+4. Check admin panel email log
 
 ### Reset the application
 ```bash
 # WARNING: This deletes all data
 docker compose down -v
 docker compose up -d
-# Re-run setup wizard at http://localhost:3000
 ```
 
-## Security Notes
+## Security Features
 
-- **Passwords** are hashed using modern algorithms (bcrypt in production, simulated in demo)
-- **Sessions** use secure cookie settings with HttpOnly and SameSite flags
-- **CSRF protection** is implemented for state-changing operations
-- **Rate limiting** prevents brute-force attacks on authentication
-- **QR tokens** are short-lived (5 minutes) and single-use
-- **Reset tokens** expire after 1 hour and are single-use
-- **Generic responses** prevent email enumeration during registration/reset
-- **Input validation** is performed on all user inputs
-- **Secrets** are never logged or exposed in error messages
+- **Password Hashing**: bcrypt with salt rounds
+- **JWT Authentication**: Secure token-based auth
+- **Rate Limiting**: Prevents brute-force attacks
+- **CSRF Protection**: Cookie-based CSRF tokens
+- **Security Headers**: Helmet.js middleware
+- **Input Validation**: Server-side validation on all endpoints
+- **SQL Injection Prevention**: Parameterized queries
+- **XSS Protection**: Content Security Policy headers
+- **Secure Cookies**: HttpOnly, Secure, SameSite flags
+- **Generic Responses**: Prevents email enumeration
+- **Short-lived Tokens**: QR tokens expire in 5 minutes
+- **Password Reset Tokens**: Expire after 1 hour, single-use
 
-## Architecture
+## API Endpoints
 
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Get current user
+- `POST /api/auth/set-password` - Set new password
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset password with token
+
+### Events
+- `GET /api/events` - List all events
+- `POST /api/events` - Create event (admin/assistant)
+
+### Registrations
+- `POST /api/registrations` - Register for event
+
+### Attendance
+- `POST /api/attendance/checkin` - Check in to event
+
+### Health
+- `GET /health` - Health check endpoint
+
+## Development
+
+### Run locally without Docker
+
+```bash
+# Backend
+cd backend
+npm install
+npm run dev
+
+# Frontend (separate terminal)
+npm install
+npm run dev
 ```
-┌─────────────────────────────────────────────────┐
-│                   Internet                       │
-└────────────────────┬────────────────────────────┘
-                     │ HTTPS (443)
-┌────────────────────┴────────────────────────────┐
-│              Reverse Proxy (Caddy/Nginx)         │
-│              - TLS termination                   │
-│              - Rate limiting                     │
-└────────────────────┬────────────────────────────┘
-                     │ HTTP (3000)
-┌────────────────────┴────────────────────────────┐
-│              Docker Host                         │
-│  ┌─────────────────────────────────────────┐    │
-│  │  Kindred Hands App (nginx + React SPA)  │    │
-│  │  - Port 80 (mapped to host 3000)        │    │
-│  └─────────────────────────────────────────┘    │
-│  ┌──────────────┐  ┌──────────────────────┐    │
-│  │  PostgreSQL   │  │  Redis               │    │
-│  │  (port 5432)  │  │  (port 6379)         │    │
-│  └──────────────┘  └──────────────────────┘    │
-│                                                 │
-│  Volumes: db-data, app-uploads, app-backups     │
-└─────────────────────────────────────────────────┘
+
+### Database migrations
+
+```bash
+cd backend
+npm run migrate
 ```
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Fork the repository (`https://github.com/oak8989/kindred-hands`)
+1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
@@ -360,7 +361,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT License - See LICENSE file for details.
+MIT License
 
 ## Support
 
