@@ -1,9 +1,13 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import type { User, Event, Registration, Attendance, Waiver, WaiverSignature, Medal, MedalAward, OrganizationSettings, QRToken, EmailLog } from '../types';
 
 interface AppState {
+  // Hydration state
+  hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
+  
   // Auth
   currentUser: User | null;
   users: User[];
@@ -97,6 +101,9 @@ const generateTempPassword = (): string => {
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
+      hasHydrated: false,
+      setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
+      
       currentUser: null,
       users: [],
       resetTokens: new Map(),
@@ -352,14 +359,37 @@ export const useStore = create<AppState>()(
       },
 
       updateSettings: (updates) => {
-        set(state => ({ settings: { ...state.settings, ...updates } }));
+        set(state => ({ 
+          settings: { 
+            ...state.settings, 
+            ...updates,
+            // Ensure all SMTP fields are properly saved
+            smtpHost: updates.smtpHost ?? state.settings.smtpHost,
+            smtpPort: updates.smtpPort ?? state.settings.smtpPort,
+            smtpEncryption: updates.smtpEncryption ?? state.settings.smtpEncryption,
+            smtpUsername: updates.smtpUsername ?? state.settings.smtpUsername,
+            smtpPassword: updates.smtpPassword ?? state.settings.smtpPassword,
+            smtpFromAddress: updates.smtpFromAddress ?? state.settings.smtpFromAddress,
+          } 
+        }));
       },
 
       completeSetup: () => {
-        set(state => ({ settings: { ...state.settings, isSetupComplete: true } }));
+        set(state => ({ 
+          settings: { 
+            ...state.settings, 
+            isSetupComplete: true 
+          } 
+        }));
+        // Force a save to localStorage
+        if (typeof window !== 'undefined') {
+          const state = get();
+          localStorage.setItem('kindred-hands-storage', JSON.stringify(state));
+        }
       },
 
       sendEmail: (to, subject, body) => {
+        const settings = get().settings;
         const log: EmailLog = {
           id: uuidv4(),
           to,
@@ -368,8 +398,21 @@ export const useStore = create<AppState>()(
           sentAt: new Date().toISOString(),
           status: 'sent',
         };
+        
+        // Log based on email mode
+        if (settings.emailMode === 'console') {
+          console.log(`[EMAIL - Console Mode] To: ${to} | Subject: ${subject}`);
+          console.log(`[EMAIL - Console Mode] Body: ${body}`);
+        } else if (settings.emailMode === 'file') {
+          console.log(`[EMAIL - File Mode] Email would be saved to /data/logs/emails/`);
+          console.log(`[EMAIL - File Mode] To: ${to} | Subject: ${subject}`);
+        } else if (settings.emailMode === 'smtp') {
+          console.log(`[EMAIL - SMTP Mode] Would send via ${settings.smtpHost}:${settings.smtpPort}`);
+          console.log(`[EMAIL - SMTP Mode] To: ${to} | Subject: ${subject}`);
+          console.log(`[EMAIL - SMTP Mode] From: ${settings.smtpFromAddress}`);
+        }
+        
         set(state => ({ emailLogs: [...state.emailLogs, log] }));
-        console.log(`[EMAIL] To: ${to} | Subject: ${subject} | Body: ${body}`);
       },
 
       updateUserRole: (userId, role) => {
@@ -380,6 +423,14 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'kindred-hands-storage',
+      storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (state) {
+            state.setHasHydrated(true);
+          }
+        };
+      },
     }
   )
 );

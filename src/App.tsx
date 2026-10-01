@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store';
+import { useEffect, useState } from 'react';
 import SetupWizard from './pages/SetupWizard';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -24,7 +25,32 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?
 }
 
 function App() {
-  const { settings } = useStore();
+  const { settings, hasHydrated } = useStore();
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Wait for zustand to hydrate from localStorage
+  useEffect(() => {
+    const checkHydration = () => {
+      if (hasHydrated) {
+        setIsHydrated(true);
+      } else {
+        setTimeout(checkHydration, 50);
+      }
+    };
+    checkHydration();
+  }, [hasHydrated]);
+
+  // Show loading while hydrating
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!settings.isSetupComplete) {
     return (
